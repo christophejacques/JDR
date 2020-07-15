@@ -246,7 +246,13 @@ class Buff_Debuff:
         self.caracteristiques = FenetreListe.__init__(self, "Buff", 4, ATTRIBUTS.get_items())
         self.resistances = FenetreListe.__init__(self, "Buff", 4, ELEMENTS.get_items())
     
+
+class Inventaire(FenetreListe, FONCTIONS):
     
+    def __init__(self):
+        FenetreListe.__init__(self, "Inventaire", 40, [])
+        self.liste_classe = Inventaire
+        
     
 class Equipement(FenetreListe):
     
@@ -404,7 +410,7 @@ class Player:
     
     def imprime(self):
         setColor(colors.bcolors.NOIR)
-        print(" ")
+        print(" . ", flush=True)
         os.system("cls")
         printXY(2, 2, "Nom    :", self.nom)
         printXY(3, 3, "Niveau :", self.niveau)
@@ -437,6 +443,7 @@ class Partie:
     
     def __init__(self):
         self.players = []
+        self.inventaire = Inventaire()
         self.player_id = 0
         self.max_players = 0
         
@@ -513,7 +520,33 @@ class Partie:
                 printXY(5, 42, "Key:", k)
                 special = False
         
+    def gestion_inventaire(self):
         
+        k = None
+        special = False
+        while k != b'\x1b':
+            self.inventaire.printScreen(130, 6)
+            if k:
+                printXY(5, 40, "Key:", k)
+                if special:
+                    printXY(5, 41, "Special")
+                
+            print(end="", flush=True)
+            k = getch()
+            if k == b'\xe0': 
+                k = getch()
+                special = True
+                if k == b'H': # Fleche Haut
+                    pass
+                elif k == b'P': # Fleche Bas
+                    pass
+
+            else:
+                special = False
+                if k == b'\x1b': # Touche Echap
+                    pass
+
+
     def gestion_joueurs(self):
         
         k = None
@@ -592,7 +625,11 @@ class Partie:
                     if self.current_player.equipement.selected: 
                         self.current_player.equipement.selected = False
                         k = None
-                        
+
+                elif k == b'\r': # Touche Entrée
+                    if self.current_player.current_fenetre.titre == "Equipement":
+                        self.gestion_inventaire()
+                
                 elif k == b'+': # Touche '+'
                     if self.current_player.current_fenetre:
                         if hasattr(self.current_player.current_fenetre, "points"):
