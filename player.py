@@ -21,7 +21,16 @@ class FenetreListe:
                 
         self.tailleElt = tMax
         self.tailleValeur = taille
-    
+        
+    def update_tailles(self):
+        tMax = 0
+        for elt in self.liste:
+            if len(str(elt)) > tMax: tMax = len(str(elt))
+        self.tailleElt = tMax
+
+    def append(self, index, objet):
+        self.liste[index] = objet
+
     def add(self, element, valeur):
         self.liste[element] += valeur
     
@@ -79,7 +88,7 @@ class FenetreListe:
         posY += 1
         objet_color_libelle = ""
         objet_color_code = None
-        
+
         for idx, rez in enumerate(sorted(self.liste, key=self.liste_classe.order)):
             rezstr = self.liste[rez]
             
@@ -90,7 +99,7 @@ class FenetreListe:
                 
             if self.selected and idx == self.ligne_selected:
                 # ligne selectionnee                    
-                if objet.__class__.__name__ == "Objet":
+                if objet.__class__.__name__ in ("Objet", "Inventaire"):
                     objet_color_code = RARETE.get_valof_from(objet.rarete, "couleur") # RARETE.couleur[objet.rarete]
                     objet_color_libelle = RARETE.get_valof_from(objet.rarete, "libelle") # RARETE.libelle[objet.rarete]
                     rezstr = objet.nom[:self.tailleValeur]
@@ -102,14 +111,14 @@ class FenetreListe:
                 
             else:
                 # ligne non selectionnee                    
-                if objet.__class__.__name__ == "Objet":
+                if objet.__class__.__name__ in ("Objet", "Inventaire"):
                     rezstr = objet.nom[:self.tailleValeur]
                     # setColor(RARETE.couleur[objet.rarete] + couleur_fond)
                     setColor(RARETE.get_valof_from(objet.rarete, "couleur") + couleur_fond)
                 else:
                     setColor(colors.fcolors.ENDC + couleur_fond)
                     
-            if objet.__class__.__name__ == "Objet" or objet is None:
+            if objet.__class__.__name__ in ("Objet", "Inventaire") or objet is None:
                 printXY(posX, posY, ("{:" + str(self.tailleElt) + "} : {:" + str(self.tailleValeur) + "} ").format(rez, rezstr)) 
             else:
                 resequip = self.depuis_equipement[rez]
@@ -249,10 +258,35 @@ class Buff_Debuff:
 
 class Inventaire(FenetreListe, FONCTIONS):
     
+    libelle = []
+    
     def __init__(self):
-        FenetreListe.__init__(self, "Inventaire", 40, [])
+        FenetreListe.__init__(self, "Inventaire", 60, {})
         self.liste_classe = Inventaire
-        
+
+        liste_emplacements = EMPLACEMENTS.get_items()
+        index = 0
+        if True:
+            for _ in range(2):
+                for emplacement in liste_emplacements:
+                    objet = Objet(emplacement, emplacement)
+                    caracteristiques = ATTRIBUTS.get_items(0)
+                    resistances = ELEMENTS.get_items(0)
+                    
+                    for attribut in objet.caracteristiques.liste:
+                        caracteristiques[attribut] += objet.caracteristiques.liste[attribut]
+                    
+                    for element in objet.resistances.liste:
+                        resistances[element] += objet.resistances.liste[element]
+
+                    self.append(index, objet)
+                    Inventaire.libelle.append(index)
+                    
+                    #self.add(index, objet)
+                    index += 1
+                    
+            self.update_tailles()
+                
     
 class Equipement(FenetreListe):
     
@@ -522,9 +556,14 @@ class Partie:
         
     def gestion_inventaire(self):
         
+        self.inventaire.selected = True
+        self.current_player.equipement.selected = False
+        
         k = None
         special = False
         while k != b'\x1b':
+            
+            self.current_player.imprime()
             self.inventaire.printScreen(130, 6)
             if k:
                 printXY(5, 40, "Key:", k)
@@ -537,14 +576,27 @@ class Partie:
                 k = getch()
                 special = True
                 if k == b'H': # Fleche Haut
-                    pass
+                    if self.inventaire:
+                        temp_selected = self.inventaire.ligne_selected - 1
+                        if temp_selected < 0:
+                            self.inventaire.ligne_selected = len(self.inventaire.liste)-1
+                        else:
+                            self.inventaire.ligne_selected = temp_selected
+                            
                 elif k == b'P': # Fleche Bas
-                    pass
+                    if self.inventaire:
+                        self.inventaire.ligne_selected += 1
+                        if self.inventaire.ligne_selected >= len(self.inventaire.liste):
+                            self.inventaire.ligne_selected = 0
+                            
 
             else:
                 special = False
                 if k == b'\x1b': # Touche Echap
                     pass
+
+        self.inventaire.selected = False
+        self.current_player.equipement.selected = True
 
 
     def gestion_joueurs(self):
@@ -627,8 +679,9 @@ class Partie:
                         k = None
 
                 elif k == b'\r': # Touche Entrée
-                    if self.current_player.current_fenetre.titre == "Equipement":
-                        self.gestion_inventaire()
+                    if self.current_player.current_fenetre:
+                        if self.current_player.current_fenetre.titre == "Equipement":
+                            self.gestion_inventaire()
                 
                 elif k == b'+': # Touche '+'
                     if self.current_player.current_fenetre:
